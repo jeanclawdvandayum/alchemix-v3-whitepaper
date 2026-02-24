@@ -1,0 +1,1536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alchemix V3: Self-Repaying Loans via Index Accounting</title>
+
+  <!-- LaTeX.css -->
+  <link rel="stylesheet" href="https://latex.vercel.app/style.css">
+
+  <!-- Latin Modern fonts -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/aaaakshat/cm-web-fonts@latest/fonts.css">
+
+  <!-- MathJax -->
+  <script>
+  MathJax = {
+    tex: {
+      inlineMath: [['$', '$']],
+      displayMath: [['$$', '$$']],
+      tags: 'ams',
+      macros: {
+        Q: '\\mathbb{Q}_{128}',
+        oneQ: '2^{128}',
+        mulQ: '\\operatorname{mulQ128}',
+        divQ: '\\operatorname{divQ128}',
+        floor: ['\\left\\lfloor #1 \\right\\rfloor', 1],
+        ceil: ['\\left\\lceil #1 \\right\\rceil', 1],
+        BPS: '10{,}000'
+      }
+    }
+  };
+  </script>
+  <script id="MathJax-script" async
+    src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+  </script>
+
+  <style>
+    /* Extensions beyond LaTeX.css */
+    body {
+      font-family: 'Computer Modern Serif', 'Latin Modern Roman', Georgia, serif;
+    }
+
+    article {
+      counter-reset: figure table listing algorithm corollary proposition remark example;
+    }
+
+    /* Title page */
+    .title-page {
+      min-height: 70vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 4rem 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .title-page h1 {
+      font-size: 2.2em;
+      line-height: 1.2;
+      margin-bottom: 1.5rem;
+    }
+
+    .title-page h1::before { content: none; }
+
+    .title-page .author { font-size: 1.15em; margin-bottom: 0.5em; }
+    .title-page .date { font-size: 1em; margin-bottom: 0.5em; }
+    .title-page .version {
+      font-style: italic;
+      color: #666;
+      margin-top: 1em;
+      font-size: 0.9em;
+    }
+
+    /* TOC */
+    .toc { margin: 2em 0; padding: 1em 0; border-top: 1px solid currentColor; border-bottom: 1px solid currentColor; }
+    .toc h2::before { content: none; }
+    .toc ol { list-style: none; padding-left: 0; }
+    .toc > ol > li { margin-bottom: 0.25em; }
+    .toc ol ol { padding-left: 2em; }
+    .toc a { text-decoration: none; color: inherit; }
+    .toc a:hover { text-decoration: underline; }
+
+    /* Figure numbering */
+    figure { margin: 2em auto; text-align: center; counter-increment: figure; max-width: 90%; }
+    figcaption { font-size: 0.875em; text-align: center; margin-top: 0.5em; }
+    figcaption::before { content: "Figure " counter(figure) ": "; font-weight: bold; }
+
+    /* Table caption above */
+    table caption { caption-side: top; font-size: 0.875em; margin-bottom: 0.5em; font-weight: bold; }
+
+    /* Aside / callout for important notes */
+    .aside {
+      margin: 1.5em 0;
+      padding: 0.75em 1em;
+      border-left: 3px solid #333;
+      background: #f9f9f6;
+      font-size: 0.95em;
+    }
+
+    body.latex-dark .aside { background: #1a1a1a; border-left-color: #666; }
+
+    /* Corollary, remark */
+    .corollary {
+      font-style: italic;
+      display: block;
+      margin: 1em 0;
+      counter-increment: corollary;
+    }
+    .corollary::before {
+      content: "Corollary " counter(corollary) ". ";
+      font-weight: bold;
+      font-style: normal;
+    }
+
+    .remark {
+      display: block;
+      margin: 1em 0;
+      counter-increment: remark;
+    }
+    .remark::before {
+      content: "Remark " counter(remark) ". ";
+      font-style: italic;
+    }
+
+    .proposition {
+      font-style: italic;
+      display: block;
+      margin: 1em 0;
+      counter-increment: proposition;
+    }
+    .proposition::before {
+      content: "Proposition " counter(proposition) ". ";
+      font-weight: bold;
+      font-style: normal;
+    }
+
+    /* Algorithm blocks */
+    .algorithm {
+      border: 1px solid currentColor;
+      padding: 1em 1.5em;
+      margin: 1.5em 0;
+      counter-increment: algorithm;
+      page-break-inside: avoid;
+    }
+    .algorithm > .alg-caption {
+      font-weight: bold;
+      margin-bottom: 0.5em;
+    }
+    .pseudocode {
+      font-family: 'Computer Modern Typewriter', 'Courier New', monospace;
+      font-size: 0.88em;
+      line-height: 1.5;
+      white-space: pre;
+      overflow-x: auto;
+    }
+
+    /* Diagram SVG container */
+    .diagram-container {
+      margin: 2em auto;
+      max-width: 700px;
+      text-align: center;
+    }
+    .diagram-container svg { max-width: 100%; height: auto; }
+
+    /* Bibliography */
+    .bibliography { padding-left: 2em; font-size: 0.875em; }
+    .bibliography li { margin-bottom: 0.5em; line-height: 1.4; }
+    .bibliography cite { font-style: italic; }
+
+    /* Code listing */
+    .listing { counter-increment: listing; margin: 1.5em 0; }
+    .listing > .listing-caption { font-size: 0.875em; margin-bottom: 0.25em; }
+    .listing > .listing-caption::before { content: "Listing " counter(listing) ": "; font-weight: bold; }
+    .listing pre {
+      border: 1px solid #ddd;
+      padding: 0.75em 1em;
+      font-size: 0.82em;
+      line-height: 1.4;
+      overflow-x: auto;
+      margin: 0;
+    }
+    .listing code {
+      font-family: 'Computer Modern Typewriter', 'Fira Code', 'Consolas', monospace;
+    }
+
+    /* Dark mode toggle */
+    #dark-toggle {
+      position: fixed;
+      bottom: 1rem;
+      right: 1rem;
+      padding: 0.4em 0.8em;
+      font-family: inherit;
+      font-size: 0.8em;
+      cursor: pointer;
+      border: 1px solid currentColor;
+      background: transparent;
+      color: inherit;
+      z-index: 10;
+    }
+
+    body.latex-dark .listing pre { border-color: #444; }
+    body.latex-dark .algorithm { border-color: #555; }
+
+    /* Print */
+    @media print {
+      #dark-toggle { display: none; }
+      body { font-size: 10pt; max-width: none; }
+      .title-page { page-break-after: always; min-height: auto; }
+      h2 { page-break-after: avoid; }
+      .theorem, .lemma, .definition, .proof, .algorithm { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body class="latex-dark-auto text-justify">
+
+<button id="dark-toggle" onclick="document.body.classList.toggle('latex-dark')">Toggle dark mode</button>
+
+<article class="indent-pars">
+
+<!-- ═══════════════════════════════════════════════════════
+     TITLE PAGE
+     ═══════════════════════════════════════════════════════ -->
+<header class="title-page">
+  <h1>Alchemix V3:<br>Self-Repaying Loans via Index Accounting</h1>
+  <p class="author">
+    Scoopy Trooples<br>
+    <small>scupytrooples@mail.alchemix.fi</small><br>
+    <small>Alchemix Finance</small>
+  </p>
+  <p class="date"><time datetime="2026-02-24">February 2026</time></p>
+  <p class="version">Working Draft &mdash; v0.1</p>
+</header>
+
+<!-- ═══════════════════════════════════════════════════════
+     ABSTRACT
+     ═══════════════════════════════════════════════════════ -->
+<div class="abstract">
+  <h2>Abstract</h2>
+  <p>
+    We present Alchemix V3, a protocol enabling <em>self-repaying loans</em> on Ethereum.
+    Users deposit yield-bearing collateral and borrow synthetic assets (alUSD, alETH) against
+    future yield. Over time, the yield generated by the collateral repays the debt automatically,
+    without liquidation risk from price fluctuations&mdash;the collateral and debt are denominated
+    in the same asset class (like-kind). The key technical contribution of V3 is a novel
+    <em>index accounting</em> system that replaces the $O(n)$ per-account iteration of prior
+    versions with $O(1)$ proportional debt earmarking and redemption via a pair of packed
+    epoch-index weights, a survival accumulator, and Q128.128 fixed-point arithmetic. Debt
+    earmarking&mdash;the process by which the Transmuter claims portions of borrower debt for
+    redemption&mdash;and actual redemptions are tracked as two independent multiplicative processes,
+    allowing the protocol to synchronize any individual account against the global state in
+    constant time. We describe the architecture, formalize the mathematics, and discuss the
+    Transmuter's block-granular stake progression via a packed Fenwick tree, the Meta Yield Token
+    (MYT) vault-of-vaults design, and the liquidation mechanics specific to like-kind collateral.
+  </p>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     TABLE OF CONTENTS
+     ═══════════════════════════════════════════════════════ -->
+<nav class="toc" role="navigation">
+  <h2>Contents</h2>
+  <ol>
+    <li><a href="#introduction">Introduction</a>
+      <ol>
+        <li><a href="#self-repaying">The Self-Repaying Loan</a></li>
+        <li><a href="#history">A Brief History: V1 and V2</a></li>
+        <li><a href="#v2-limitations">Where Prior Versions Fell Short</a></li>
+        <li><a href="#v3-contributions">What V3 Changes</a></li>
+      </ol>
+    </li>
+    <li><a href="#architecture">Protocol Architecture</a>
+      <ol>
+        <li><a href="#overview">High-Level Overview</a></li>
+        <li><a href="#alchemist">The Alchemist</a></li>
+        <li><a href="#transmuter">The Transmuter</a></li>
+        <li><a href="#myt">Meta Yield Token (MYT)</a></li>
+        <li><a href="#position-nft">Position NFTs</a></li>
+      </ol>
+    </li>
+    <li><a href="#index-accounting">Index Accounting</a>
+      <ol>
+        <li><a href="#problem">The Problem: O(n) Iteration</a></li>
+        <li><a href="#q128">Q128.128 Fixed-Point Arithmetic</a></li>
+        <li><a href="#packed-weights">Packed Epoch-Index Weights</a></li>
+        <li><a href="#survival-accumulator">The Survival Accumulator</a></li>
+        <li><a href="#account-sync">Account Synchronization</a></li>
+        <li><a href="#epoch-boundaries">Epoch Boundaries</a></li>
+      </ol>
+    </li>
+    <li><a href="#earmark-redeem">Earmarking and Redemption</a>
+      <ol>
+        <li><a href="#earmark-process">The Earmark Process</a></li>
+        <li><a href="#staking-graph">The Staking Graph</a></li>
+        <li><a href="#redemption-flow">Redemption Flow</a></li>
+        <li><a href="#cover-mechanism">The Cover Mechanism</a></li>
+        <li><a href="#three-forces">Three Independent Forces</a></li>
+      </ol>
+    </li>
+    <li><a href="#collateral-liquidation">Collateralization and Liquidation</a>
+      <ol>
+        <li><a href="#like-kind">Like-Kind Collateral</a></li>
+        <li><a href="#bounds">Collateralization Bounds</a></li>
+        <li><a href="#liquidation-math">Liquidation Mathematics</a></li>
+        <li><a href="#self-liquidation">Self-Liquidation</a></li>
+      </ol>
+    </li>
+    <li><a href="#transmuter-detail">The Transmuter in Detail</a>
+      <ol>
+        <li><a href="#redemption-creation">Redemption Creation</a></li>
+        <li><a href="#fenwick">Block-Granular Progression</a></li>
+        <li><a href="#claim-bad-debt">Claim and Bad Debt Scaling</a></li>
+      </ol>
+    </li>
+    <li><a href="#myt-detail">Meta Yield Token Architecture</a>
+      <ol>
+        <li><a href="#vault-of-vaults">Vault-of-Vaults Design</a></li>
+        <li><a href="#erc4626">ERC-4626 Interface</a></li>
+        <li><a href="#strategy-allocation">Strategy Allocation</a></li>
+      </ol>
+    </li>
+    <li><a href="#security">Security Considerations</a>
+      <ol>
+        <li><a href="#rounding">Rounding and Dust</a></li>
+        <li><a href="#flash-loans">Flash Loan Protection</a></li>
+        <li><a href="#invariants">Invariants</a></li>
+      </ol>
+    </li>
+    <li><a href="#conclusion">Conclusion</a></li>
+  </ol>
+</nav>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     1. INTRODUCTION
+     ═══════════════════════════════════════════════════════ -->
+<h2 id="introduction">Introduction</h2>
+
+<h3 id="self-repaying">The Self-Repaying Loan</h3>
+<p>
+  The fundamental insight behind Alchemix is deceptively simple: if your collateral
+  generates yield, and your loan is denominated in the same asset, the yield can
+  automatically repay the debt. No margin calls. No watching price feeds at 3am.
+  No cascading liquidations because ETH dipped 12% on a Tuesday. You deposit,
+  you borrow, and time does the rest.
+</p>
+<p>
+  This is the <em>self-repaying loan</em>&mdash;a financial primitive that did not
+  exist before Alchemix introduced it in February 2021. The idea is that a user
+  deposits yield-bearing assets (say, USDC into an Aave lending pool), borrows
+  a synthetic stablecoin (alUSD) against that deposit, and then the interest
+  accruing on the USDC gradually pays off the alUSD debt. The user receives
+  immediate liquidity today against yield they would have earned anyway tomorrow.
+</p>
+<p>
+  The appeal is not purely financial. Self-repaying loans represent a philosophical
+  commitment: that the time-value of money should benefit depositors rather than
+  extract from borrowers. In traditional finance, interest payments flow from
+  borrower to lender. In Alchemix, the yield generated by the borrower's own
+  capital flows back to the borrower in the form of debt reduction. The lender,
+  in this model, is time itself.
+</p>
+
+<h3 id="history">A Brief History: V1 and V2</h3>
+<p>
+  <strong>Alchemix V1</strong> (February 2021) was the proof of concept. Users deposited
+  DAI into Yearn Finance vaults, borrowed alUSD at up to 50% LTV, and yield from Yearn
+  repaid their debt over time. It worked. It also had significant limitations: a single
+  yield source (Yearn), a single collateral type (DAI), and a Transmuter that operated
+  as a first-in-first-out queue with no formal accounting of who owed what to whom.
+  The Transmuter was, charitably, a state machine with ambitions beyond its architecture.
+</p>
+<p>
+  <strong>Alchemix V2</strong> (March 2022) addressed several of these constraints. It
+  introduced multiple collateral types (USDC, USDT, ETH, and their yield-bearing
+  equivalents), multiple yield strategies per collateral, and a more generalized
+  architecture. V2 supported both alUSD and alETH as synthetic assets, with separate
+  Alchemist instances for each. The Transmuter was reimplemented with a more robust
+  mechanism for converting synthetics back to underlying assets.
+</p>
+<p>
+  V2 achieved considerable scale, reaching over $300M in TVL at its peak. However,
+  several architectural decisions made in 2021&ndash;2022 became increasingly untenable
+  as the protocol matured.
+</p>
+
+<h3 id="v2-limitations">Where Prior Versions Fell Short</h3>
+<p>
+  Three problems dominated:
+</p>
+<p>
+  <strong>1. O(n) Debt Distribution.</strong> When the Transmuter redeemed debt against
+  borrowers, V2 had to iterate over accounts to distribute the impact proportionally.
+  This worked at small scale but imposed a hard ceiling on how many positions the
+  protocol could support before gas costs became prohibitive. Every interaction
+  that touched global debt state risked escalating gas consumption linearly
+  with the number of accounts.
+</p>
+<p>
+  <strong>2. Yield Strategy Fragility.</strong> V2 strategies were tightly coupled to
+  specific yield sources, with limited ability to rebalance or recover from strategy
+  failures. When a yield source underperformed or was compromised, the impact was
+  concentrated in the accounts using that specific strategy. There was no mechanism
+  for diversified yield exposure across multiple sources from a single deposit.
+</p>
+<p>
+  <strong>3. Transmuter Rigidity.</strong> The V2 Transmuter operated on a relatively
+  simple model of synthetic-to-underlying conversion that did not gracefully handle
+  partial redemptions, time-weighted stake progression, or the subtleties of bad
+  debt scaling. The redemption queue was functional but lacked the mathematical
+  elegance needed to scale.
+</p>
+
+<h3 id="v3-contributions">What V3 Changes</h3>
+<p>
+  Alchemix V3 is a ground-up rewrite. The core contributions are:
+</p>
+<p>
+  <strong>Index Accounting.</strong> A novel system of packed epoch-index weights and
+  a survival accumulator that enables $O(1)$ earmarking and redemption of debt across
+  all borrowers simultaneously. Individual accounts are lazily synchronized against
+  the global state only when they are next touched. This eliminates the $O(n)$
+  iteration bottleneck entirely.
+</p>
+<p>
+  <strong>Meta Yield Token (MYT).</strong> A vault-of-vaults architecture built on a
+  Morpho V2 fork. Instead of depositing into a single yield strategy, collateral is
+  deposited as MYT shares representing a diversified, curator-managed portfolio of
+  yield sources. The Alchemist holds MYT shares; MYT handles strategy allocation.
+</p>
+<p>
+  <strong>Block-Granular Transmuter.</strong> A redesigned Transmuter that uses a
+  packed Fenwick tree (the &ldquo;Staking Graph&rdquo;) to track the precise amount of
+  synthetic debt that becomes redeemable at each Ethereum block. Redemption positions
+  have a defined maturation period, and the graph allows querying the total redeemable
+  amount for any arbitrary block range in $O(\log n)$ time.
+</p>
+<p>
+  <strong>Position NFTs.</strong> User positions are represented as ERC-721 tokens,
+  enabling transfer, delegation, and composability with other DeFi protocols. Each
+  NFT encapsulates a complete collateral-debt position.
+</p>
+<p>
+  <strong>Like-Kind Purity.</strong> V3 embraces the like-kind model completely:
+  USDC collateral backs alUSD debt, ETH collateral backs alETH debt. There is no
+  cross-asset risk. The only liquidation scenario is yield strategy loss&mdash;a
+  condition where the collateral itself loses value, not where an external price
+  feed moves against the borrower. This means no oracle dependency for solvency
+  determination.
+</p>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     2. PROTOCOL ARCHITECTURE
+     ═══════════════════════════════════════════════════════ -->
+<h2 id="architecture">Protocol Architecture</h2>
+
+<h3 id="overview">High-Level Overview</h3>
+<p>
+  The V3 system consists of four primary contracts:
+</p>
+
+<figure>
+  <div class="diagram-container">
+    <svg viewBox="0 0 680 380" xmlns="http://www.w3.org/2000/svg" style="font-family: 'Computer Modern Serif', Georgia, serif;">
+      <!-- User -->
+      <rect x="260" y="10" width="160" height="44" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="340" y="37" text-anchor="middle" font-size="14" fill="currentColor">User (Position NFT)</text>
+
+      <!-- Alchemist -->
+      <rect x="220" y="100" width="240" height="60" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="340" y="126" text-anchor="middle" font-size="15" font-weight="bold" fill="currentColor">AlchemistV3</text>
+      <text x="340" y="146" text-anchor="middle" font-size="11" fill="currentColor">Index Accounting · Debt · Collateral</text>
+
+      <!-- MYT -->
+      <rect x="10" y="220" width="200" height="60" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="110" y="246" text-anchor="middle" font-size="14" font-weight="bold" fill="currentColor">MYT Vault (ERC-4626)</text>
+      <text x="110" y="264" text-anchor="middle" font-size="11" fill="currentColor">Morpho V2 · Strategy Alloc.</text>
+
+      <!-- Transmuter -->
+      <rect x="470" y="220" width="200" height="60" rx="4" fill="none" stroke="currentColor" stroke-width="1.5"/>
+      <text x="570" y="246" text-anchor="middle" font-size="14" font-weight="bold" fill="currentColor">Transmuter</text>
+      <text x="570" y="264" text-anchor="middle" font-size="11" fill="currentColor">Staking Graph · Redemptions</text>
+
+      <!-- Strategies -->
+      <rect x="10" y="330" width="200" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="4,3"/>
+      <text x="110" y="355" text-anchor="middle" font-size="12" fill="currentColor">Yield Strategies (Aave, etc.)</text>
+
+      <!-- alUSD/alETH -->
+      <rect x="470" y="330" width="200" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="4,3"/>
+      <text x="570" y="355" text-anchor="middle" font-size="12" fill="currentColor">alUSD / alETH (Synthetics)</text>
+
+      <!-- Arrows -->
+      <!-- User -> Alchemist -->
+      <line x1="340" y1="54" x2="340" y2="100" stroke="currentColor" stroke-width="1" marker-end="url(#arrow)"/>
+      <text x="352" y="80" font-size="10" fill="currentColor">deposit / mint / repay</text>
+
+      <!-- Alchemist -> MYT -->
+      <line x1="260" y1="160" x2="160" y2="220" stroke="currentColor" stroke-width="1" marker-end="url(#arrow)"/>
+      <text x="175" y="190" font-size="10" fill="currentColor">MYT shares</text>
+
+      <!-- Alchemist -> Transmuter -->
+      <line x1="420" y1="160" x2="520" y2="220" stroke="currentColor" stroke-width="1" marker-end="url(#arrow)"/>
+      <text x="445" y="190" font-size="10" fill="currentColor">earmark / redeem</text>
+
+      <!-- MYT -> Strategies -->
+      <line x1="110" y1="280" x2="110" y2="330" stroke="currentColor" stroke-width="1" marker-end="url(#arrow)"/>
+      <text x="122" y="310" font-size="10" fill="currentColor">allocate</text>
+
+      <!-- Transmuter -> Synthetics -->
+      <line x1="570" y1="280" x2="570" y2="330" stroke="currentColor" stroke-width="1" marker-end="url(#arrow)"/>
+      <text x="582" y="310" font-size="10" fill="currentColor">burn alUSD</text>
+
+      <!-- Transmuter -> Alchemist (redeem callback) -->
+      <path d="M 470 250 Q 410 250 420 180 Q 425 160 440 160" fill="none" stroke="currentColor" stroke-width="1" stroke-dasharray="3,3" marker-end="url(#arrow)"/>
+
+      <defs>
+        <marker id="arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <path d="M0,0 L8,3 L0,6" fill="none" stroke="currentColor" stroke-width="1"/>
+        </marker>
+      </defs>
+    </svg>
+  </div>
+  <figcaption>
+    High-level architecture of Alchemix V3. Solid arrows indicate primary interactions;
+    dashed arrows indicate callbacks. The Transmuter queries the Staking Graph to determine
+    earmarkable amounts, then calls back into the Alchemist to execute redemptions.
+  </figcaption>
+</figure>
+
+<p>
+  The <strong>AlchemistV3</strong> is the core lending engine. It holds collateral (in the
+  form of MYT shares), issues debt (alUSD or alETH), and maintains the index accounting
+  state that tracks earmarking and redemptions across all positions.
+</p>
+<p>
+  The <strong>Transmuter</strong> is the redemption mechanism. Holders of synthetic assets
+  (alUSD, alETH) deposit them into the Transmuter to initiate a redemption&mdash;a process
+  by which their synthetics are gradually exchanged for the underlying yield-bearing
+  collateral over a defined maturation period.
+</p>
+<p>
+  The <strong>MYT Vault</strong> is the yield layer. It implements ERC-4626 and wraps a
+  curator-managed portfolio of yield strategies via a Morpho V2-derived architecture.
+  The Alchemist interacts only with MYT; it is agnostic to the specific yield sources
+  underneath.
+</p>
+<p>
+  <strong>Position NFTs</strong> (AlchemistV3Position, ERC-721) represent individual
+  user positions. All account state&mdash;collateral balance, debt, earmarked amount,
+  synchronization checkpoints&mdash;is indexed by the NFT's token ID.
+</p>
+
+<h3 id="alchemist">The Alchemist</h3>
+<p>
+  The AlchemistV3 contract manages the core lending lifecycle:
+</p>
+<p>
+  <strong>Deposit.</strong> Users deposit MYT shares as collateral, either creating a new
+  position (minting an NFT) or adding to an existing one. Deposits are capped globally
+  by <code>depositCap</code>.
+</p>
+<p>
+  <strong>Mint (Borrow).</strong> Against their collateral, users mint alUSD or alETH.
+  The maximum borrowable amount is constrained by a minimum collateralization ratio,
+  typically 2:1&mdash;for every \$2 of collateral, a user may borrow \$1 of synthetic.
+  Since collateral and debt are like-kind, this ratio is computed directly from the MYT
+  share price without requiring an external oracle.
+</p>
+<p>
+  <strong>Earmark.</strong> Periodically (at most once per block), the Alchemist queries
+  the Transmuter to determine how much synthetic debt has become redeemable since the
+  last earmark. This amount is then &ldquo;earmarked&rdquo; proportionally across all
+  borrowers&mdash;recorded in the global index weights rather than iterated per account.
+</p>
+<p>
+  <strong>Redeem.</strong> When the Transmuter claims collateral, the Alchemist reduces
+  earmarked debt globally and transfers the corresponding MYT shares. The survival
+  accumulator is updated to reflect the proportional reduction.
+</p>
+<p>
+  <strong>Burn / Repay.</strong> Users may repay debt voluntarily by burning alUSD/alETH
+  (<code>burn</code>) or by surrendering MYT shares (<code>repay</code>). Burning repays
+  only unearmarked debt; repaying with collateral handles both earmarked and unearmarked
+  portions.
+</p>
+<p>
+  <strong>Liquidate.</strong> If a position's collateralization falls below the lower
+  bound (due to yield strategy losses), it becomes eligible for liquidation. The
+  liquidation math targets a specific collateralization ratio post-liquidation, with
+  fees paid to the liquidator.
+</p>
+
+<h3 id="transmuter">The Transmuter</h3>
+<p>
+  The Transmuter is where synthetic assets go to die&mdash;or rather, to be transmuted
+  back into their underlying form. A holder of alUSD deposits it into the Transmuter
+  and receives a position NFT representing a time-locked redemption. Over a configurable
+  maturation period (measured in blocks), the synthetic deposit linearly becomes redeemable
+  for yield-bearing collateral (MYT shares). The mechanism by which this happens is
+  described in Section <a href="#transmuter-detail">6</a>.
+</p>
+
+<h3 id="myt">Meta Yield Token (MYT)</h3>
+<p>
+  Rather than depositing raw USDC or WETH and choosing a yield strategy, V3 users
+  deposit MYT shares. MYT is an ERC-4626 vault that wraps a diversified portfolio
+  of yield strategies via a Morpho V2-derived architecture. A curator allocates funds
+  across strategies (Aave V3, Euler, Moonwell, Morpho Blue, etc.) according to risk
+  and yield parameters. The Alchemist never touches the underlying strategies directly&mdash;it
+  holds MYT shares and converts between shares and underlying via the standard
+  <code>convertToAssets</code> and <code>convertToShares</code> interface.
+</p>
+<p>
+  This separation of concerns means the yield strategy can be upgraded, rebalanced,
+  or emergency-withdrawn without any changes to the Alchemist contract itself. It also
+  means a single deposit benefits from diversification across multiple yield sources,
+  reducing concentration risk relative to V2's single-strategy model.
+</p>
+
+<h3 id="position-nft">Position NFTs</h3>
+<p>
+  Each user position is an ERC-721 token minted by the <code>AlchemistV3Position</code>
+  contract. The Account struct, indexed by token ID, stores:
+</p>
+
+$$
+\texttt{Account} = \begin{cases}
+  \texttt{collateralBalance} & \text{MYT shares deposited} \\
+  \texttt{debt} & \text{total debt (earmarked + unearmarked)} \\
+  \texttt{earmarked} & \text{debt claimed by the Transmuter} \\
+  \texttt{lastAccruedEarmarkWeight} & \text{packed earmark checkpoint} \\
+  \texttt{lastAccruedRedemptionWeight} & \text{packed redemption checkpoint} \\
+  \texttt{lastSurvivalAccumulator} & \text{accumulator snapshot} \\
+  \texttt{lastTotalRedeemedDebt} & \text{global redemption checkpoint} \\
+  \texttt{lastTotalRedeemedSharesOut} & \text{collateral redemption checkpoint}
+\end{cases}
+$$
+
+<p>
+  When an NFT is transferred, mint allowances are reset (via a version counter) to
+  prevent the new owner from inheriting spend approvals from the previous owner.
+</p>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     3. INDEX ACCOUNTING
+     ═══════════════════════════════════════════════════════ -->
+<h2 id="index-accounting">Index Accounting</h2>
+
+<p>
+  This section contains the core mathematical contribution of V3. If you read only
+  one section of this paper, let it be this one.
+  <label for="sn-1" class="sidenote-toggle sidenote-number"></label>
+  <input type="checkbox" id="sn-1" class="sidenote-toggle">
+  <span class="sidenote">We considered relegating the math to an appendix, but that
+  felt dishonest. The math <em>is</em> the protocol.</span>
+</p>
+
+<h3 id="problem">The Problem: O(n) Iteration</h3>
+<p>
+  When the Transmuter says &ldquo;I want to redeem \$1{,}000 of debt,&rdquo; the protocol
+  must distribute this proportionally across all borrowers. With $n$ accounts, the
+  na&iuml;ve approach iterates over every account, computing each one's share:
+</p>
+
+$$
+\forall\, i \in [1, n]: \quad \texttt{account}_i.\texttt{debt} \mathrel{-}= \frac{\texttt{account}_i.\texttt{debt}}{\texttt{totalDebt}} \times \texttt{redeemAmount} \tag{1}
+$$
+
+<p>
+  This costs $O(n)$ gas per earmark or redemption. At hundreds or thousands of
+  positions, it becomes the bottleneck. V3 eliminates this by recording global
+  multiplicative factors and deferring per-account updates to the moment each account
+  is next accessed&mdash;a lazy evaluation strategy.
+</p>
+
+<h3 id="q128">Q128.128 Fixed-Point Arithmetic</h3>
+<p>
+  Proportional accounting requires ratios. Ratios require fractions. The EVM has no
+  native fractional types, so we use Q128.128 fixed-point representation: a 256-bit
+  unsigned integer where the upper 128 bits represent the integer part and the lower
+  128 bits represent the fractional part. The unit value is:
+</p>
+
+$$
+\texttt{ONE\_Q128} = 2^{128} \approx 3.4 \times 10^{38} \tag{2}
+$$
+
+<p>Two operations suffice:</p>
+
+<div class="definition">
+  <strong>Q128.128 Multiplication.</strong>
+  Given two Q128.128 values $a$ and $b$:
+  $$
+    \mulQ(a, b) = \ceil{\frac{a \times b}{2^{128}}} \tag{3}
+  $$
+  Implemented via 512-bit intermediate product with rounding up on the fractional
+  remainder. The ceiling ensures that survival ratios do not undercount.
+</div>
+
+<div class="definition">
+  <strong>Q128.128 Division.</strong>
+  Given numerator $n$ and denominator $d$ (both in Q128.128):
+  $$
+    \divQ(n, d) = \floor{\frac{n \times 2^{128}}{d}} \tag{4}
+  $$
+  With a fast path when $n < 2^{128}$ (left shift is safe) and a slow path for
+  larger values.
+</div>
+
+<div class="remark">
+  The choice of Q128.128 over the more common Q96.160 or fixed-point $10^{18}$
+  representations is deliberate. With 128 bits of fractional precision, the
+  accumulator can withstand over 900 sequential halvings before reaching zero.
+  Typical DeFi protocols using $10^{18}$ precision lose resolution after roughly
+  60 halvings. Since each earmark and redemption event applies a multiplicative
+  ratio $< 1$, this precision headroom is essential for long-lived positions.
+</div>
+
+<h3 id="packed-weights">Packed Epoch-Index Weights</h3>
+<p>
+  The global state tracks two packed weights, each encoding an <em>epoch</em> and
+  an <em>index</em> within a single <code>uint256</code>:
+</p>
+
+$$
+\texttt{packed} = (\texttt{epoch} \ll 129) \;|\; \texttt{index} \tag{5}
+$$
+
+<p>
+  where $\texttt{index} \in [0, 2^{129} - 1]$ and $\texttt{epoch}$ occupies the
+  remaining upper bits. Two such weights exist:
+</p>
+
+<p>
+  <strong>Earmark Weight</strong> ($W_e$): Tracks the cumulative multiplicative
+  erosion of unearmarked debt. When debt is earmarked, the unearmarked fraction
+  shrinks. The earmark index records the product of all such shrinkage ratios.
+</p>
+
+<p>
+  <strong>Redemption Weight</strong> ($W_r$): Tracks the cumulative multiplicative
+  erosion of earmarked debt. When earmarked debt is redeemed, the remaining earmarked
+  fraction shrinks. The redemption index records the product of all such ratios.
+</p>
+
+<p>
+  Each account stores its own checkpoint of both weights at its last synchronization.
+  The <em>survival ratio</em> between two packed weights tells us what fraction of
+  the relevant quantity survived between those two points:
+</p>
+
+<div class="definition">
+  <strong>Survival Ratio.</strong> Given an old packed weight
+  $W_{\text{old}} = (\epsilon_{\text{old}}, I_{\text{old}})$ and a new weight
+  $W_{\text{new}} = (\epsilon_{\text{new}}, I_{\text{new}})$:
+  $$
+    S(W_{\text{old}}, W_{\text{new}}) = \begin{cases}
+      \oneQ & \text{if } W_{\text{old}} = W_{\text{new}} \\[4pt]
+      0 & \text{if } \epsilon_{\text{new}} > \epsilon_{\text{old}} \\[4pt]
+      \divQ(I_{\text{new}},\; I_{\text{old}}) & \text{otherwise}
+    \end{cases} \tag{6}
+  $$
+</div>
+
+<p>
+  If the epoch has advanced, the debt was fully earmarked (or fully redeemed)
+  at some point during the interval, so survival is zero. Otherwise, the ratio
+  of the new index to the old index gives the fraction that survived.
+</p>
+
+<h3 id="survival-accumulator">The Survival Accumulator</h3>
+<p>
+  The earmark weight tells us how much unearmarked debt became earmarked.
+  The redemption weight tells us how much earmarked debt was redeemed. But
+  an individual account needs to know: <em>of the debt that was earmarked from
+  my exposure, how much was subsequently redeemed?</em> This requires composing
+  the two processes, which is what the survival accumulator $G$ does.
+</p>
+
+<p>
+  The accumulator is a global Q128.128 value that is updated by both earmarking
+  and redemption:
+</p>
+
+<div class="definition">
+  <strong>Survival Accumulator Update Rules.</strong>
+  <p>On earmark (fraction $f$ of unearmarked debt is earmarked):</p>
+  $$
+    G \mathrel{+}= \mulQ\!\bigl(I_e^{\,\text{old}},\; f\bigr) \tag{7}
+  $$
+  where $I_e^{\,\text{old}}$ is the earmark index before this update and
+  $f = \oneQ - r_{\text{applied}}$ is the earmarked fraction (complement of the
+  survival ratio applied to the earmark index).
+
+  <p>On redemption (survival ratio $r$ applied to earmarked debt):</p>
+  $$
+    G \leftarrow \mulQ(G,\; r) \tag{8}
+  $$
+</div>
+
+<p>
+  Intuitively, $G$ tracks how much &ldquo;earmarked survival&rdquo; has accumulated
+  in the system. When debt is earmarked, $G$ grows (more debt enters the earmarked
+  state). When earmarked debt is redeemed, $G$ shrinks proportionally. An individual
+  account uses $G$, together with its checkpoint of $G$ at last sync, to determine
+  what fraction of its earmarked debt has been redeemed since it was last touched.
+</p>
+
+<h3 id="account-sync">Account Synchronization</h3>
+<p>
+  When account $i$ is accessed (via deposit, withdraw, mint, burn, or an explicit
+  poke), the <code>_sync</code> function brings it up to date with the current global
+  state. The core computation in <code>_computeUnrealizedAccount</code> proceeds as
+  follows. Let:
+</p>
+
+$$
+\begin{aligned}
+  E_i &= \texttt{account}_i.\texttt{earmarked} & &\text{(earmarked debt at last sync)} \\
+  D_i &= \texttt{account}_i.\texttt{debt} & &\text{(total debt at last sync)} \\
+  U_i &= D_i - E_i & &\text{(unearmarked exposure)} \\
+  G_i^{\text{last}} &= \texttt{account}_i.\texttt{lastSurvivalAccumulator} & &\text{(accumulator checkpoint)}
+\end{aligned} \tag{9}
+$$
+
+<p><strong>Step 1: Compute new earmarks.</strong></p>
+$$
+\begin{aligned}
+  r_e &= S(W_e^{\text{last}},\; W_e^{\text{now}}) & &\text{(earmark survival ratio)} \\
+  U_i' &= \mulQ(U_i,\; r_e) & &\text{(unearmarked remaining)} \\
+  \Delta E_i &= U_i - U_i' & &\text{(newly earmarked)}
+\end{aligned} \tag{10}
+$$
+
+<p><strong>Step 2: Compute redemptions.</strong></p>
+$$
+\begin{aligned}
+  r_r &= S(W_r^{\text{last}},\; W_r^{\text{now}}) & &\text{(redemption survival ratio)} \\
+  I_e^{\text{last}} &= \texttt{earIndex}(W_e^{\text{last}}) & &\text{(account's earmark index at last sync)} \\
+  G_i^{\text{decayed}} &= \mulQ(G_i^{\text{last}},\; r_r) & &\text{(accumulator after redemptions)} \\
+  \delta G &= \min(G^{\text{now}} - G_i^{\text{decayed}},\; I_e^{\text{last}}) \\
+  \rho &= \divQ(\delta G,\; I_e^{\text{last}}) & &\text{(unredeemed ratio)} \\
+  E_i^{\text{unredeemed}} &= \mulQ(U_i,\; \rho) & &\text{(newly earmarked that survived redemption)}
+\end{aligned} \tag{11}
+$$
+
+<p><strong>Step 3: Assemble final state.</strong></p>
+$$
+\begin{aligned}
+  E_i^{\text{old,survived}} &= \mulQ(E_i,\; r_r) & &\text{(old earmarks that survived)} \\
+  R_i^{\text{from\_old}} &= E_i - E_i^{\text{old,survived}} & &\text{(redeemed from old earmarks)} \\
+  R_i^{\text{from\_new}} &= \Delta E_i - E_i^{\text{unredeemed}} & &\text{(redeemed from new earmarks)} \\
+  R_i^{\text{total}} &= R_i^{\text{from\_old}} + R_i^{\text{from\_new}} & &\text{(total redeemed)} \\[6pt]
+  D_i^{\text{new}} &= D_i - R_i^{\text{total}} \\
+  E_i^{\text{new}} &= E_i^{\text{old,survived}} + E_i^{\text{unredeemed}}
+\end{aligned} \tag{12}
+$$
+
+<p>
+  All of this is computed in constant time with respect to the number of accounts.
+  The cost is dominated by a fixed number of Q128.128 multiplications and divisions
+  &mdash;roughly 10&ndash;15 operations regardless of protocol size.
+</p>
+
+<div class="theorem">
+  The index accounting system maintains the following property: for any sequence of
+  earmark and redemption events, the sum of all individual account debts (after lazy
+  synchronization) equals the global <code>totalDebt</code>, up to rounding of at most
+  1 wei per account.
+</div>
+
+<div class="proof">
+  Each account's debt change is derived from the same global multiplicative ratios
+  ($W_e$, $W_r$, $G$). The earmark weight encodes the product of all $(U - a)/U$
+  ratios, where $a$ is the amount earmarked from unearmarked pool $U$. By construction,
+  $\sum_i U_i = U$ (all accounts' unearmarked exposure sums to global unearmarked debt).
+  Applying the same multiplicative factor to each $U_i$ and summing preserves the total.
+  The 1-wei-per-account rounding bound follows from the ceiling in
+  $\mulQ$.
+</div>
+
+<h3 id="epoch-boundaries">Epoch Boundaries</h3>
+<p>
+  When the index reaches zero (all unearmarked debt has been earmarked, or all earmarked
+  debt has been redeemed), continuing to multiply by ratios is meaningless&mdash;anything
+  times zero is zero, and we lose the ability to track subsequent events. The epoch
+  mechanism handles this:
+</p>
+
+<div class="algorithm">
+  <div class="alg-caption">Algorithm 1: Epoch Advance on Full Earmark</div>
+  <div class="pseudocode">
+<b>if</b> newIndex = 0 <b>then</b>
+    epoch ← epoch + 1
+    newIndex ← ONE_Q128     <i>// reset to unit</i>
+    <i>// Snapshot redemption weight and accumulator at boundary</i>
+    epochStartRedemptionWeight[epoch] ← W_r
+    epochStartSurvivalAccumulator[epoch] ← G
+<b>end if</b></div>
+</div>
+
+<p>
+  When an account syncs across an epoch boundary, it splits the computation: the
+  pre-boundary portion uses the snapshotted values at the boundary; the post-boundary
+  portion uses the current global values. This ensures that accounts which were not
+  touched during the full-wipe event are correctly updated when they eventually sync.
+</p>
+
+<div class="remark">
+  Epoch advances are expected to be rare in practice. They require 100% of unearmarked
+  debt to be earmarked (or 100% of earmarked debt to be redeemed) in a single operation.
+  The mechanism exists for correctness, not for common-path efficiency.
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     4. EARMARKING AND REDEMPTION
+     ═══════════════════════════════════════════════════════ -->
+<h2 id="earmark-redeem">Earmarking and Redemption</h2>
+
+<h3 id="earmark-process">The Earmark Process</h3>
+<p>
+  Earmarking is the process by which the Transmuter claims a portion of borrowers'
+  debt for eventual redemption. It is <em>not</em> yield distribution&mdash;a distinction
+  that is important enough to warrant its own callout:
+</p>
+
+<div class="aside">
+  <strong>Earmarking &ne; Yield Distribution.</strong> Yield grows collateral value
+  (the MYT share price increases). Earmarking reduces debt (the Transmuter claims
+  portions of borrower debt). These are independent forces operating on different
+  sides of the balance sheet. Yield affects the numerator of the collateralization
+  ratio; earmarking affects the denominator. Redemptions work at zero yield.
+</div>
+
+<p>
+  The earmark function (<code>_earmark</code>) is called at most once per block,
+  lazily, whenever any state-modifying function is invoked. It proceeds as follows:
+</p>
+
+<p>
+  <strong>1. Query the Staking Graph.</strong> The Alchemist calls
+  <code>transmuter.queryGraph(lastEarmarkBlock + 1, block.number)</code> to determine
+  how much synthetic debt has become redeemable since the last earmark.
+</p>
+
+<p>
+  <strong>2. Apply Cover.</strong> If the Transmuter holds MYT shares from prior
+  repayments (the &ldquo;cover&rdquo;), these offset the earmark amount. Cover represents
+  collateral already available to fulfill redemptions without taking from borrowers.
+</p>
+
+<p>
+  <strong>3. Update the Earmark Weight.</strong> The unearmarked pool is reduced
+  proportionally:
+</p>
+
+$$
+\begin{aligned}
+  U &= \texttt{totalDebt} - \texttt{cumulativeEarmarked} \\
+  r &= \frac{U - a}{U} \quad \text{(in Q128.128, where $a$ is amount to earmark)} \\
+  I_e^{\text{new}} &= \mulQ(I_e^{\text{old}},\; r) \\
+  \texttt{cumulativeEarmarked} &\mathrel{+}= U - \mulQ(U,\; r_{\text{applied}})
+\end{aligned} \tag{13}
+$$
+
+<p>
+  where $r_{\text{applied}}$ is the effective ratio after index quantization (which may
+  differ slightly from $r$ due to rounding).
+</p>
+
+<p>
+  <strong>4. Update the Survival Accumulator.</strong> The newly earmarked fraction
+  is recorded:
+</p>
+
+$$
+  G \mathrel{+}= \mulQ\!\left(I_e^{\,\text{old}},\; \oneQ - r_{\text{applied}}\right) \tag{14}
+$$
+
+<h3 id="staking-graph">The Staking Graph</h3>
+<p>
+  The Transmuter needs to answer the question: <em>how much synthetic debt became
+  redeemable between block $a$ and block $b$?</em> This is a range-sum query over
+  a dynamic dataset where positions are continuously being added.
+</p>
+<p>
+  V3 solves this with a <em>double delta Fenwick tree</em> (the &ldquo;Staking
+  Graph&rdquo;). Each Transmuter position contributes a linear stake progression:
+  if a user deposits $A$ synthetics with a maturation period of $T$ blocks, the
+  position contributes $A/T$ redeemable debt per block from its start block
+  to its maturation block.
+</p>
+<p>
+  The tree stores two packed values per node: a delta (rate of change of
+  redeemable amount) and a product (delta $\times$ block number), using a
+  112/144-bit split within a single <code>uint256</code> slot. This allows
+  both point updates and range queries in $O(\log n)$ time, where $n$ is the
+  size of the block space.
+</p>
+
+<div class="definition">
+  <strong>Staking Graph Query.</strong> For a range $[s, e]$:
+  $$
+    Q(s, e) = \bigl(e \cdot \Sigma_\delta(e) - \Sigma_p(e)\bigr) - \bigl((s-1) \cdot \Sigma_\delta(s-1) - \Sigma_p(s-1)\bigr) \tag{15}
+  $$
+  where $\Sigma_\delta$ and $\Sigma_p$ are prefix sums of the delta and product
+  trees respectively.
+</div>
+
+<p>
+  The graph is dynamically resizable, expanding to the next power of two whenever
+  a position's maturation block exceeds the current tree size. The scaling factor
+  of $10^8$ (applied to the rate) preserves precision for positions where $A/T$
+  would otherwise truncate to zero.
+</p>
+
+<h3 id="redemption-flow">Redemption Flow</h3>
+<p>
+  Redemption is the act of the Transmuter calling <code>alchemist.redeem(amount)</code>
+  to exchange earmarked debt for collateral. The process mirrors earmarking but operates
+  on the redemption weight:
+</p>
+
+$$
+\begin{aligned}
+  E &= \texttt{cumulativeEarmarked} \\
+  r &= \frac{E - a}{E} \quad \text{(in Q128.128)} \\
+  I_r^{\text{new}} &= \mulQ(I_r^{\text{old}},\; r) \\
+  G &\leftarrow \mulQ(G,\; r_{\text{applied}}) \\
+  \texttt{cumulativeEarmarked} &\leftarrow \mulQ(E,\; r_{\text{applied}}) \\
+  \texttt{totalDebt} &\mathrel{-}= E - \texttt{cumulativeEarmarked}
+\end{aligned} \tag{16}
+$$
+
+<p>
+  The Alchemist then transfers the corresponding MYT shares to the Transmuter.
+  A protocol fee is deducted from the redeemed collateral.
+</p>
+
+<h3 id="cover-mechanism">The Cover Mechanism</h3>
+<p>
+  When a user repays debt with MYT shares (via <code>repay</code>), those shares
+  are sent to the Transmuter. This creates &ldquo;cover&rdquo;&mdash;collateral that
+  is already available to fulfill future redemptions without needing to take from
+  borrowers via the earmark mechanism.
+</p>
+<p>
+  The Alchemist tracks <code>_pendingCoverShares</code>, which represents the
+  MYT balance increase in the Transmuter since the last earmark. During each
+  earmark, this cover is applied first: the earmark amount is reduced by the
+  cover value (converted to debt terms), and the corresponding cover shares are
+  consumed. This prevents double-counting&mdash;collateral already at the Transmuter
+  should not also be earmarked from borrowers.
+</p>
+
+<h3 id="three-forces">Three Independent Forces</h3>
+<p>
+  A position in Alchemix V3 is subject to three independent forces:
+</p>
+<p>
+  <strong>1. Yield</strong> (collateral &uarr;): The MYT share price increases over
+  time as underlying strategies generate returns. This improves the collateralization
+  ratio by increasing the numerator. Yield is entirely external to the earmark/redemption
+  mechanism&mdash;it flows through the MYT vault, not through the Alchemist's accounting.
+</p>
+<p>
+  <strong>2. Redemption</strong> (collateral &darr;, debt &darr;): When the Transmuter
+  redeems, collateral is taken and debt is reduced. This affects both sides of the
+  balance sheet simultaneously. For a well-collateralized position, the net effect on
+  the collateralization ratio is approximately neutral.
+</p>
+<p>
+  <strong>3. Strategy Loss</strong> (collateral &darr;): If the yield strategy
+  loses value (a depeg, exploit, or simply negative returns), the MYT share price
+  drops. This degrades the collateralization ratio and is the <em>only</em> path
+  to liquidation in a like-kind system.
+</p>
+
+<div class="proposition">
+  In the absence of strategy losses, a position's collateralization ratio
+  monotonically improves over time, since yield increases collateral while
+  redemptions decrease both collateral and debt proportionally.
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     5. COLLATERALIZATION AND LIQUIDATION
+     ═══════════════════════════════════════════════════════ -->
+<h2 id="collateral-liquidation">Collateralization and Liquidation</h2>
+
+<h3 id="like-kind">Like-Kind Collateral</h3>
+<p>
+  V3 operates exclusively with like-kind collateral: USDC backs alUSD, WETH backs
+  alETH. Because the collateral and debt are denominated in the same underlying asset,
+  there is no exchange rate risk. A USDC deposit backing an alUSD loan will never be
+  liquidated because &ldquo;USDC went down relative to alUSD&rdquo;&mdash;they are
+  definitionally equivalent in value.
+  <label for="sn-2" class="sidenote-toggle sidenote-number"></label>
+  <input type="checkbox" id="sn-2" class="sidenote-toggle">
+  <span class="sidenote">This is, admittedly, the kind of property that feels too good
+  to be true until you internalize that the collateral is a yield-bearing derivative of
+  the same asset the debt is denominated in. The price risk didn't disappear&mdash;it was
+  never there.</span>
+</p>
+<p>
+  The conversion from MYT shares to debt-denominated value is:
+</p>
+
+$$
+  \texttt{collateralValue}(i) = \texttt{convertYieldToDebt}\!\left(\texttt{account}_i.\texttt{collateralBalance}\right) \tag{17}
+$$
+
+<p>
+  which chains <code>convertToAssets</code> (MYT shares &rarr; underlying) with a
+  decimal normalization factor (underlying &rarr; debt token decimals).
+  No external oracle is consulted.
+</p>
+
+<h3 id="bounds">Collateralization Bounds</h3>
+<p>
+  Three thresholds govern position health:
+</p>
+
+$$
+\begin{aligned}
+  \texttt{minimumCollateralization} &\geq 1.0 & &\text{(ratio required to borrow)} \\
+  \texttt{collateralizationLowerBound} &\leq \texttt{minimumCollateralization} & &\text{(ratio below which liquidation begins)} \\
+  \texttt{liquidationTargetCollateralization} &\geq \texttt{minimumCollateralization} & &\text{(ratio restored after liquidation)}
+\end{aligned}
+$$
+
+<p>
+  A typical configuration might be: minimum 2.0, lower bound 1.2, target 2.0. A user
+  must maintain at least 200% collateralization to borrow. If their ratio drops below
+  120% (due to yield strategy losses), they become eligible for liquidation. The
+  liquidation process targets restoring them to 200%.
+</p>
+
+<h3 id="liquidation-math">Liquidation Mathematics</h3>
+<p>
+  The liquidation function computes how much collateral to seize and how much debt
+  to burn in order to restore the position to the target collateralization ratio.
+</p>
+
+<p>
+  Let $C$ = collateral value, $D$ = debt, $m$ = target collateralization ratio,
+  $f$ = liquidator fee in basis points. The computation proceeds:
+</p>
+
+$$
+\begin{aligned}
+  &\textbf{Case 1: } D \geq C \\
+  &\quad\text{Full liquidation. Seize all collateral. Clear all debt.} \\
+  &\quad\text{Outsourced fee } = D \cdot f / \BPS \\[8pt]
+  &\textbf{Case 2: System-wide CR} < \texttt{globalMinCR} \\
+  &\quad\text{Full liquidation to protect system solvency.} \\[8pt]
+  &\textbf{Case 3: Normal liquidation} \\
+  &\quad \texttt{surplus} = C - D \\
+  &\quad \texttt{fee} = \texttt{surplus} \cdot f / \BPS \\
+  &\quad C' = C - \texttt{fee} \\
+  &\quad \texttt{debtToBurn} = \frac{m \cdot D - C'}{m - 1} \tag{18} \\
+  &\quad \texttt{grossSeize} = \texttt{debtToBurn} + \texttt{fee}
+\end{aligned}
+$$
+
+<div class="remark">
+  The fee is taken from the <em>surplus</em> (collateral minus debt), not from the
+  collateral directly. This means the fee does not impair the position's ability to
+  be restored to health&mdash;a design choice that prioritizes borrower protection
+  over liquidator incentives when the surplus is small.
+</div>
+
+<p>
+  Before reaching the standard liquidation path, the protocol first attempts to
+  resolve the situation by force-repaying any earmarked debt. If the position's
+  earmarked debt can be repaid (converting the corresponding collateral to the
+  Transmuter), and this is sufficient to restore health, no further liquidation
+  occurs&mdash;only a repayment fee is paid to the caller.
+</p>
+
+<h3 id="self-liquidation">Self-Liquidation</h3>
+<p>
+  A healthy account (above the lower bound) may choose to <em>self-liquidate</em>:
+  repay all debt using collateral and withdraw the remainder. This is a convenience
+  function that closes a position in a single transaction. Unhealthy accounts
+  cannot self-liquidate&mdash;they must go through the standard liquidation path
+  to ensure the liquidator receives appropriate compensation for restoring system
+  health.
+</p>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     6. THE TRANSMUTER IN DETAIL
+     ═══════════════════════════════════════════════════════ -->
+<h2 id="transmuter-detail">The Transmuter in Detail</h2>
+
+<h3 id="redemption-creation">Redemption Creation</h3>
+<p>
+  A user holding alUSD calls <code>transmuter.createRedemption(amount)</code>. This:
+</p>
+<ol>
+  <li>Transfers <code>amount</code> alUSD from the user to the Transmuter.</li>
+  <li>Creates a <code>StakingPosition</code> with the current block as <code>startBlock</code>
+      and <code>startBlock + timeToTransmute</code> as <code>maturationBlock</code>.</li>
+  <li>Updates the Staking Graph with a linear rate of
+      $\texttt{amount} / \texttt{timeToTransmute}$ per block.</li>
+  <li>Mints a position NFT to the user.</li>
+</ol>
+
+<p>
+  The position linearly vests over the maturation period. At any point after creation,
+  the user may claim whatever portion has vested.
+</p>
+
+<h3 id="fenwick">Block-Granular Progression</h3>
+<p>
+  The Staking Graph's query mechanism (Equation 15) provides the Alchemist with a
+  precise answer to &ldquo;how much debt became redeemable in blocks $[a, b]$?&rdquo;
+  This is used by <code>_earmark()</code> to determine the earmark amount for each
+  window.
+</p>
+<p>
+  The choice of a Fenwick tree over alternatives (segment trees, sorted lists, or
+  time-weighted averages) is motivated by gas efficiency: point updates cost
+  $O(\log n)$ storage writes, and prefix queries cost $O(\log n)$ storage reads.
+  The packed 112/144-bit representation halves the number of storage slots accessed
+  compared to a naive two-tree implementation.
+</p>
+
+<h3 id="claim-bad-debt">Claim and Bad Debt Scaling</h3>
+<p>
+  When a user claims a matured (or partially matured) Transmuter position, the protocol
+  must account for the possibility of bad debt&mdash;the scenario where the system has
+  issued more synthetic tokens than it can back with collateral.
+</p>
+<p>
+  The bad debt ratio is:
+</p>
+
+$$
+  \beta = \frac{\texttt{totalSyntheticsIssued} \times 10^{d}}{\texttt{totalLockedUnderlying} + \texttt{transmuterYieldBalance}} \tag{19}
+$$
+
+<p>
+  where $d$ is the underlying token's decimal count. If $\beta > 10^{18}$ (i.e., the
+  system is underbacked), the transmuted amount is scaled down:
+</p>
+
+$$
+  \texttt{scaledTransmuted} = \frac{\texttt{amountTransmuted} \times 10^{18}}{\beta} \tag{20}
+$$
+
+<p>
+  This ensures that claimers receive a fair pro-rata share of available collateral
+  even in a bad debt scenario, rather than a first-come-first-served race.
+</p>
+<p>
+  The claim process also accounts for MYT shares already held by the Transmuter
+  (from prior repayments). These are used before calling <code>alchemist.redeem()</code>,
+  minimizing the amount of debt that needs to be redeemed from borrowers.
+</p>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     7. META YIELD TOKEN ARCHITECTURE
+     ═══════════════════════════════════════════════════════ -->
+<h2 id="myt-detail">Meta Yield Token Architecture</h2>
+
+<h3 id="vault-of-vaults">Vault-of-Vaults Design</h3>
+<p>
+  The Meta Yield Token (MYT) is a single ERC-4626 vault that wraps a diversified
+  portfolio of yield strategies. Its architecture is derived from Morpho V2's
+  vault system, with curator-managed allocation across multiple underlying markets.
+</p>
+<p>
+  The key architectural insight is <em>separation of yield sourcing from lending
+  mechanics</em>. The Alchemist knows only that it holds MYT shares and that those
+  shares have a value expressible in the underlying token. How those shares generate
+  yield&mdash;whether through Aave V3, Euler, Moonwell, Morpho Blue, or any other
+  source&mdash;is entirely the concern of the MYT curator.
+</p>
+<p>
+  This separation provides several benefits:
+</p>
+<p>
+  <strong>Diversification.</strong> A single deposit is spread across multiple
+  yield sources, reducing the impact of any one source failing.
+</p>
+<p>
+  <strong>Upgradeability.</strong> New strategies can be added or underperforming
+  strategies removed without touching the Alchemist contract.
+</p>
+<p>
+  <strong>Professional curation.</strong> Strategy allocation can be managed by
+  specialists who monitor risk and yield in real time, rather than relying on
+  individual depositors to choose wisely.
+</p>
+<p>
+  <strong>Simplicity for users.</strong> Users deposit one token (the underlying)
+  and receive MYT shares. They do not need to understand or evaluate individual
+  yield strategies.
+</p>
+
+<h3 id="erc4626">ERC-4626 Interface</h3>
+<p>
+  MYT implements the standard ERC-4626 tokenized vault interface. The critical
+  functions consumed by the Alchemist are:
+</p>
+
+$$
+\begin{aligned}
+  \texttt{convertToAssets}(s) &\to a & &\text{(MYT shares $s$ $\to$ underlying amount $a$)} \\
+  \texttt{convertToShares}(a) &\to s & &\text{(underlying amount $a$ $\to$ MYT shares $s$)}
+\end{aligned} \tag{21}
+$$
+
+<p>
+  The share price is the ratio of total assets under management to total shares
+  outstanding. As strategies generate yield, total assets grow, and the share price
+  increases. This is the mechanism by which yield flows into collateral value without
+  any explicit distribution step.
+</p>
+
+<h3 id="strategy-allocation">Strategy Allocation</h3>
+<p>
+  The MYT vault supports a bounded set of underlying strategy markets. A curator
+  (typically a multisig or allocation algorithm) manages:
+</p>
+<ul>
+  <li><strong>Supply caps</strong> per strategy, preventing over-concentration.</li>
+  <li><strong>Allocation ordering</strong> for deposits and withdrawals.</li>
+  <li><strong>Emergency withdrawal</strong> from compromised strategies.</li>
+  <li><strong>Force-deallocation</strong> when a strategy must be removed.</li>
+</ul>
+<p>
+  The curator role is separate from the Alchemist admin. This is deliberate: the
+  party managing yield strategy allocation need not be the same party managing
+  lending parameters. The Alchemist admin controls collateralization ratios, deposit
+  caps, and fee structures. The MYT curator controls where the yield comes from.
+</p>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     8. SECURITY CONSIDERATIONS
+     ═══════════════════════════════════════════════════════ -->
+<h2 id="security">Security Considerations</h2>
+
+<h3 id="rounding">Rounding and Dust</h3>
+<p>
+  The Q128.128 arithmetic uses ceiling rounding for multiplications (Equation 3),
+  which biases survival ratios slightly upward. This is a conservative choice:
+  an account's earmarked or remaining debt may be overstated by at most 1 wei
+  per multiplicative operation. Over many operations, this dust accumulates but
+  remains bounded by the number of earmark/redemption events the account has
+  experienced.
+</p>
+<p>
+  The <code>_subDebt</code> function clamps <code>cumulativeEarmarked</code> to
+  <code>totalDebt</code> after any debt subtraction, preventing rounding-induced
+  overstatement of earmarked amounts from causing underflow.
+</p>
+
+<h3 id="flash-loans">Flash Loan Protection</h3>
+<p>
+  The protocol enforces block separation between certain operations to prevent
+  flash loan attacks:
+</p>
+<ul>
+  <li><code>mint</code> and <code>burn</code>/<code>repay</code> cannot occur in
+      the same block for the same account (<code>lastMintBlock</code> check).</li>
+  <li><code>repay</code> and <code>mint</code> cannot occur in the same block
+      (<code>lastRepayBlock</code> check).</li>
+</ul>
+<p>
+  This prevents an attacker from borrowing (minting synthetics), manipulating a
+  yield strategy within the same transaction, and then repaying at a favorable rate.
+</p>
+
+<h3 id="invariants">Invariants</h3>
+<p>
+  The following invariants are maintained and have been verified via fuzz testing
+  at 500+ runs:
+</p>
+<ol>
+  <li>$\sum_i \texttt{account}_i.\texttt{collateralBalance} \leq \texttt{\_mytSharesDeposited}$</li>
+  <li>$\texttt{cumulativeEarmarked} \leq \texttt{totalDebt}$</li>
+  <li>$\forall\, i: \texttt{account}_i.\texttt{earmarked} \leq \texttt{account}_i.\texttt{debt}$</li>
+  <li>$\texttt{totalDebt} \geq 0$ (no underflow via <code>_subDebt</code> clamping)</li>
+  <li>The Alchemist's MYT balance $\geq \texttt{\_mytSharesDeposited}$</li>
+  <li>$\sum_i \texttt{account}_i.\texttt{debt} \leq \texttt{totalDebt} + n$ (where $n$ is account count,
+      bounding rounding drift)</li>
+</ol>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     9. CONCLUSION
+     ═══════════════════════════════════════════════════════ -->
+<h2 id="conclusion">Conclusion</h2>
+
+<p>
+  Alchemix V3 replaces the brute-force iteration of prior versions with a
+  mathematically elegant system of multiplicative index tracking. The core insight
+  &mdash;that proportional debt distribution can be encoded as a global multiplicative
+  factor and lazily applied per account&mdash;eliminates the $O(n)$ scalability
+  ceiling that constrained V1 and V2.
+</p>
+<p>
+  The survival accumulator, in particular, solves a subtle problem: composing two
+  independent multiplicative processes (earmarking and redemption) that operate on
+  overlapping populations. By maintaining a single global accumulator that is incremented
+  on earmarks and decayed on redemptions, any account can determine its precise
+  share of redeemed debt in constant time, even if it hasn't been touched in weeks.
+</p>
+<p>
+  Combined with the MYT vault-of-vaults architecture (which decouples yield sourcing
+  from lending mechanics), the block-granular Transmuter (which replaces queue-based
+  redemptions with a mathematically precise Fenwick tree), and position NFTs (which
+  enable composability), V3 represents a substantial improvement in both the
+  engineering and the conceptual foundation of self-repaying loans.
+</p>
+<p>
+  The self-repaying loan remains, we believe, one of DeFi's most genuinely useful
+  primitives. It doesn't require understanding 47 risk parameters. It doesn't require
+  monitoring liquidation feeds. It requires depositing capital, borrowing against it,
+  and trusting that time will do what time has always done: generate value from
+  productive assets.
+</p>
+<p>
+  Alchemix V3 is the infrastructure to do that at scale.
+</p>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     REFERENCES
+     ═══════════════════════════════════════════════════════ -->
+<h2 class="no-number">References</h2>
+<ol class="bibliography">
+  <li id="ref-1">
+    Buterin, V. (2013).
+    <cite>Ethereum: A Next-Generation Smart Contract and Decentralized Application Platform</cite>.
+    Ethereum White Paper.
+  </li>
+  <li id="ref-2">
+    Adams, H., Zinsmeister, N., Salem, M., Keefer, R., Robinson, D. (2021).
+    <cite>Uniswap v3 Core</cite>.
+    Uniswap Technical Paper.
+  </li>
+  <li id="ref-3">
+    EIP-4626: Tokenized Vault Standard.
+    <cite>Ethereum Improvement Proposals</cite>.
+    <a href="https://eips.ethereum.org/EIPS/eip-4626">eips.ethereum.org/EIPS/eip-4626</a>.
+  </li>
+  <li id="ref-4">
+    Morpho Labs (2024).
+    <cite>Morpho Blue Documentation</cite>.
+    <a href="https://docs.morpho.org">docs.morpho.org</a>.
+  </li>
+  <li id="ref-5">
+    Fenwick, P. M. (1994).
+    A new data structure for cumulative frequency tables.
+    <cite>Software: Practice and Experience</cite>, 24(3), 327&ndash;336.
+  </li>
+  <li id="ref-6">
+    Alchemix Finance (2021).
+    <cite>Alchemix V1: Self-Repaying Loans</cite>.
+    <a href="https://alchemix.fi">alchemix.fi</a>.
+  </li>
+</ol>
+
+<!-- ═══════════════════════════════════════════════════════
+     APPENDIX: NOTATION
+     ═══════════════════════════════════════════════════════ -->
+<h2 class="no-number">Appendix A: Notation Reference</h2>
+
+<table class="borders-custom">
+  <thead>
+    <tr class="border-bottom-thick">
+      <th style="text-align:left">Symbol</th>
+      <th style="text-align:left">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr class="border-bottom-thin">
+      <td>$W_e$</td>
+      <td>Packed earmark weight (epoch + index)</td>
+    </tr>
+    <tr class="border-bottom-thin">
+      <td>$W_r$</td>
+      <td>Packed redemption weight (epoch + index)</td>
+    </tr>
+    <tr class="border-bottom-thin">
+      <td>$G$</td>
+      <td>Survival accumulator (Q128.128)</td>
+    </tr>
+    <tr class="border-bottom-thin">
+      <td>$I_e$, $I_r$</td>
+      <td>Index component of earmark and redemption weights</td>
+    </tr>
+    <tr class="border-bottom-thin">
+      <td>$\epsilon$</td>
+      <td>Epoch component of a packed weight</td>
+    </tr>
+    <tr class="border-bottom-thin">
+      <td>$S(W_\text{old}, W_\text{new})$</td>
+      <td>Survival ratio between two packed weights</td>
+    </tr>
+    <tr class="border-bottom-thin">
+      <td>$\mulQ(a, b)$</td>
+      <td>Q128.128 multiplication: $\ceil{ab / 2^{128}}$</td>
+    </tr>
+    <tr class="border-bottom-thin">
+      <td>$\divQ(a, b)$</td>
+      <td>Q128.128 division: $\floor{a \cdot 2^{128} / b}$</td>
+    </tr>
+    <tr class="border-bottom-thin">
+      <td>$D_i$, $E_i$, $U_i$</td>
+      <td>Account $i$'s debt, earmarked, and unearmarked amounts</td>
+    </tr>
+    <tr class="border-bottom-thin">
+      <td>$\beta$</td>
+      <td>Bad debt ratio (Transmuter claim scaling)</td>
+    </tr>
+    <tr class="border-bottom-thick">
+      <td>$\texttt{BPS}$</td>
+      <td>Basis points constant ($10{,}000$)</td>
+    </tr>
+  </tbody>
+</table>
+
+</article>
+</body>
+</html>
