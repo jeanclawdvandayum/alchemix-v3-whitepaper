@@ -391,12 +391,17 @@
   Three problems dominated:
 </p>
 <p>
-  <strong>1. O(n) Debt Distribution.</strong> When the Transmuter redeemed debt against
-  borrowers, V2 had to iterate over accounts to distribute the impact proportionally.
-  This worked at small scale but imposed a hard ceiling on how many positions the
-  protocol could support before gas costs became prohibitive. Every interaction
-  that touched global debt state risked escalating gas consumption linearly
-  with the number of accounts.
+  <strong>1. O(n) Redemption Distribution.</strong> Yield harvesting in V2 was already
+  $O(1)$: distributing yield against a known total deposit is a solved problem. The
+  hard problem was <em>redemptions</em>. When the Transmuter redeemed synthetic debt
+  back to underlying, each borrower&rsquo;s debt and collateral had to shrink
+  proportionally. V2 handled this by iterating over accounts at redemption time.
+  This imposed a gas ceiling that scaled linearly with the number of active positions.
+  The challenge is fundamentally different from yield distribution because redemptions
+  produce a <em>decaying population</em>: each redemption changes the denominator
+  for the next one, and accounts that have already been partially redeemed must not
+  be double-counted. Solving this in $O(1)$ requires the survival accumulator
+  described in Section&nbsp;3.
 </p>
 <p>
   <strong>2. Yield Strategy Fragility.</strong> V2 strategies were tightly coupled to
