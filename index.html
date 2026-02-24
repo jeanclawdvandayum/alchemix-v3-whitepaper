@@ -349,9 +349,10 @@
   This is the <em>self-repaying loan</em>&mdash;a financial primitive that did not
   exist before Alchemix introduced it in February 2021. The idea is that a user
   deposits yield-bearing assets (say, USDC into an Aave lending pool), borrows
-  a synthetic stablecoin (alUSD) against that deposit, and then the interest
-  accruing on the USDC gradually pays off the alUSD debt. The user receives
-  immediate liquidity today against yield they would have earned anyway tomorrow.
+  a synthetic stablecoin (alUSD) against that deposit at up to 90% loan-to-value,
+  and then the interest accruing on the USDC gradually pays off the alUSD debt.
+  The user receives immediate liquidity today against yield they would have earned
+  anyway tomorrow.
 </p>
 <p>
   The appeal is not purely financial. Self-repaying loans represent a philosophical
@@ -563,10 +564,11 @@
 </p>
 <p>
   <strong>Mint (Borrow).</strong> Against their collateral, users mint alUSD or alETH.
-  The maximum borrowable amount is constrained by a minimum collateralization ratio,
-  typically 2:1&mdash;for every \$2 of collateral, a user may borrow \$1 of synthetic.
-  Since collateral and debt are like-kind, this ratio is computed directly from the MYT
-  share price without requiring an external oracle.
+  The maximum borrowable amount is constrained by a minimum collateralization ratio.
+  Because collateral and debt are like-kind, V3 can operate at remarkably high
+  loan-to-value ratios&mdash;up to 90% LTV (a collateralization ratio of ~1.11:1).
+  For every \$1.11 of collateral, a user may borrow \$1 of synthetic. The ratio
+  is computed directly from the MYT share price without requiring an external oracle.
 </p>
 <p>
   <strong>Earmark.</strong> Periodically (at most once per block), the Alchemist queries
@@ -1134,10 +1136,13 @@ $$
 $$
 
 <p>
-  A typical configuration might be: minimum 2.0, lower bound 1.2, target 2.0. A user
-  must maintain at least 200% collateralization to borrow. If their ratio drops below
-  120% (due to yield strategy losses), they become eligible for liquidation. The
-  liquidation process targets restoring them to 200%.
+  A typical configuration for like-kind collateral: minimum ~1.11 (90% LTV),
+  lower bound 1.05, target ~1.11. A user must maintain at least 111% collateralization
+  to borrow. If their ratio drops below 105% (due to yield strategy losses), they
+  become eligible for liquidation. The liquidation process targets restoring them
+  to the minimum. These parameters are dramatically more capital-efficient than
+  cross-asset lending protocols, which typically require 150&ndash;200% collateralization
+  &mdash;a direct consequence of eliminating price risk via like-kind denomination.
 </p>
 
 <h3 id="liquidation-math">Liquidation Mathematics</h3>
